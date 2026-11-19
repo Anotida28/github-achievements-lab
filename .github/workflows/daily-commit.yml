@@ -2,8 +2,9 @@ name: Daily commit
 
 on:
   schedule:
-    - cron: "17 6 * * *"   # every day at 06:17 UTC (08:17 Harare)
-  workflow_dispatch:        # allows running it manually from the Actions tab
+    # 6 runs a day (UTC). Each run randomly decides whether to commit.
+    - cron: "23 2,6,10,14,18,22 * * *"
+  workflow_dispatch:        # manual runs always commit
 
 permissions:
   contents: write
@@ -14,14 +15,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Append today's entry
-        run: |
-          echo "- $(date -u '+%Y-%m-%d %H:%M UTC')" >> activity.md
-
-      - name: Commit and push
+      - name: Make random commits
         run: |
           git config user.name "Anotida28"
           git config user.email "162551120+Anotida28@users.noreply.github.com"
-          git add activity.md
-          git commit -m "Daily log: $(date -u +%Y-%m-%d)"
-          git push
+
+          today=$(date -u +%Y-%m-%d)
+          hour=$(date -u +%H)
+          done_today=$(grep -c "^- $today" activity.md || true)
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            n=$(( RANDOM % 3 + 1 ))                 # manual: always 1-3
+          elif [ "$hour" -ge 22 ] && [ "$done_today" -eq 0 ]; then
+            n=$(( RANDOM % 3 + 1 ))                 # last run: never leave a day empty
+          elif [ $(( RANDOM % 2 )) -eq 0 ]; then
+            n=$(( RANDOM % 3 + 1 ))                 # 50% chance: 1-3 commits
+          else
+            n=0
+          fi
+
+          echo "Making $n commit(s) (already $done_today today)"
+          for i in $(seq 1 $n); do
+            echo "- $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> activity.md
+            git add activity.md
+            git commit -q -m "Daily log: $today ($((done_today + i)))"
+            sleep $(( RANDOM % 20 + 5 ))
+          done
+
+          [ "$n" -gt 0 ] && git push || echo "Skipping this run"
