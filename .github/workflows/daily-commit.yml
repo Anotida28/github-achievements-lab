@@ -1,0 +1,27 @@
+name: Daily commit
+
+on:
+  schedule:
+    - cron: "17 6 * * *"   # every day at 06:17 UTC (08:17 Harare)
+  workflow_dispatch:        # allows running it manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Append today's entry
+        run: |
+          echo "- $(date -u '+%Y-%m-%d %H:%M UTC')" >> activity.md
+
+      - name: Commit and push
+        run: |
+          git config user.name "Anotida28"
+          git config user.email "162551120+Anotida28@users.noreply.github.com"
+          git add activity.md
+          git commit -m "Daily log: $(date -u +%Y-%m-%d)"
+          git push
